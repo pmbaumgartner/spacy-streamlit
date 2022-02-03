@@ -17,13 +17,15 @@ StreamlitProcess = NewType("StreamlitProcess", Popen)
 
 
 @pytest.fixture
-def streamlit_app(capsys):
+def streamlit_app(capsys) -> StreamlitPort:
+    port: StreamlitPort = 8989
+
     if os.environ.get("ENVIRONMENT") == "gha":
-        # we're on github actions
-        yield None, 8989
+        # we're on github actions, the docker image is
+        # running as a service already
+        yield port
     else:
         # we're local
-        port: StreamlitPort = 8989
         stapp: StreamlitProcess = Popen(
             [
                 "streamlit",
