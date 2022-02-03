@@ -16,7 +16,7 @@ jobs:
           path: |
             ~/.cache/pip
             ~/.cache/ms-playwright/
-          key: ${{ hashFiles('setup.py') }}-${{ hashFiles('requirements.txt')-${{ hashFiles('requirements-dev.txt') }}
+          key: ${{ hashFiles('setup.py') }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('requirements-dev.txt') }}
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
