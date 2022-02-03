@@ -12,7 +12,7 @@ import pytest
 import spacy
 from playwright.sync_api import Page
 
-MULTILINE_INPUT_KEY = "Meta" if sys.platform == "darwin" else "Ctrl"
+MULTILINE_INPUT_KEY = "Meta" if sys.platform == "darwin" else "Control"
 
 
 def find_free_port() -> int:
