@@ -15,8 +15,10 @@ MULTILINE_INPUT_KEY = "Meta" if sys.platform == "darwin" else "Control"
 StreamlitPort = NewType("StreamlitPort", int)
 StreamlitProcess = NewType("StreamlitProcess", Popen)
 
-
-@pytest.fixture
+# This fixture is function scoped since the one test we have is linear and changes
+# the state of the app. You might want another session scoped fixture if you're just
+# checking for initial content on the page and _not_ interacting with it and changing state.
+@pytest.fixture(scope="function")
 def streamlit_app(capsys) -> StreamlitPort:
     port: StreamlitPort = 8989
 
