@@ -1,12 +1,10 @@
-import socket
+import os
+import signal
 import sys
-from contextlib import closing
 from subprocess import PIPE, Popen, TimeoutExpired
 from time import sleep
-from typing import Tuple
+from typing import NewType, Optional
 from warnings import warn
-import signal
-import os
 
 import pytest
 import spacy
@@ -14,13 +12,8 @@ from playwright.sync_api import Page
 
 MULTILINE_INPUT_KEY = "Meta" if sys.platform == "darwin" else "Control"
 
-
-def find_free_port() -> int:
-    # https://stackoverflow.com/a/45690594
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.bind(("", 0))
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        return s.getsockname()[1]
+StreamlitPort = NewType("StreamlitPort", int)
+StreamlitProcess = NewType("StreamlitProcess", Popen)
 
 
 @pytest.fixture
@@ -30,14 +23,14 @@ def streamlit_app(capsys):
         yield None, 8989
     else:
         # we're local
-        free_port = find_free_port()
-        stapp = Popen(
+        port: StreamlitPort = 8989
+        stapp: StreamlitProcess = Popen(
             [
                 "streamlit",
                 "run",
                 "01_out-of-the-box.py",
                 "--server.port",
-                str(free_port),
+                str(port),
                 "--server.headless",
                 "true",
             ],
@@ -47,54 +40,60 @@ def streamlit_app(capsys):
         )
         sleep(1)  # give the app some time to startup
         returncode = stapp.poll()
-        if returncode is not None:
-            with capsys.disabled():
-                warn(stapp.stderr.peek().decode())
-                pytest.fail("Failed to start Streamlit App")
         # no return code if app is running
+        if returncode is not None:
+            warn_stderr_and_fail(stapp, capsys)
+        # app should be running
         startup_loop = True
-        retries = 30
-        retry_counter = 0
-        while startup_loop and retry_counter < retries:
+        retries = 5
+        retry_counter = 1
+        while startup_loop and retry_counter <= retries:
             if (
                 "You can now view your Streamlit app in your browser."
                 in stapp.stdout.peek().decode()
             ):
                 startup_loop = False
-                yield stapp, free_port
+                yield port
             else:
                 with capsys.disabled():
-                    warn("Streamlit app not running yet. Waiting 1s.")
+                    print("Streamlit app not running yet. Waiting 1s.")
                 sleep(1)
                 returncode = stapp.poll()
                 retry_counter += 1
                 if returncode is not None:
-                    with capsys.disabled():
-                        warn(stapp.stderr.peek().decode())
-                        pytest.fail(
-                            f"Failed to start Streamlit App. Retries: {retries}"
-                        )
+                    warn_stderr_and_fail(stapp, capsys, retries=retries)
+
         if retry_counter == retries:
-            with capsys.disabled():
-                warn(stapp.stderr.peek().decode())
-                pytest.fail(f"Failed to start Streamlit App after {retries} retries.")
+            warn_stderr_and_fail(stapp, capsys, retries=retries)
+
+        # cleanup
         try:
             stapp.send_signal(signal.SIGINT)
             stapp.wait(timeout=15)
         except TimeoutExpired:
             stapp.kill()
-            stapp.terminate()
+            stapp.wait(timeout=15)
+
+
+def warn_stderr_and_fail(
+    streamlit_process: StreamlitProcess, capsys, retries: Optional[int] = None
+) -> None:
+    with capsys.disabled():
+        warn("\n" + streamlit_process.stderr.peek().decode())
+        if not retries:
+            pytest.fail(f"Failed to start Streamlit App")
+        else:
+            pytest.fail(f"Failed to start Streamlit App. Retries: {retries}.")
 
 
 @pytest.mark.only_browser("chromium")
-def test_out_of_the_box(streamlit_app: Tuple[Popen, int], page: Page):
-    stapp_process, port = streamlit_app
+def test_out_of_the_box(streamlit_app: StreamlitPort, page: Page):
     test_text = "David Robert Jones was born on 8 January 1947 in Brixton, London."
     model = "en_core_web_sm"
     nlp = spacy.load(model)
     doc = nlp(test_text)
 
-    page.goto(f"http://localhost:{port}")
+    page.goto(f"http://localhost:{streamlit_app}")
 
     # even though the `en_core_web_sm` model is default
     # this selects it from the dropdown to confirm
