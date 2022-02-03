@@ -6,6 +6,7 @@ from time import sleep
 from typing import Tuple
 from warnings import warn
 import signal
+import os
 
 import pytest
 import spacy
@@ -24,58 +25,65 @@ def find_free_port() -> int:
 
 @pytest.fixture
 def streamlit_app(capsys):
-    free_port = find_free_port()
-    stapp = Popen(
-        [
-            "streamlit",
-            "run",
-            "01_out-of-the-box.py",
-            "--server.port",
-            str(free_port),
-            "--server.headless",
-            "true",
-        ],
-        cwd="examples",
-        stdout=PIPE,
-        stderr=PIPE,
-    )
-    sleep(1)  # give the app some time to startup
-    returncode = stapp.poll()
-    if returncode is not None:
-        with capsys.disabled():
-            warn(stapp.stderr.peek().decode())
-            pytest.fail("Failed to start Streamlit App")
-    # no return code if app is running
-    startup_loop = True
-    retries = 30
-    retry_counter = 0
-    while startup_loop and retry_counter < retries:
-        if (
-            "You can now view your Streamlit app in your browser."
-            in stapp.stdout.peek().decode()
-        ):
-            startup_loop = False
-            yield stapp, free_port
-        else:
+    if os.environ.get("ENVIRONMENT") == "gha":
+        # we're on github actions
+        yield None, 8989
+    else:
+        # we're local
+        free_port = find_free_port()
+        stapp = Popen(
+            [
+                "streamlit",
+                "run",
+                "01_out-of-the-box.py",
+                "--server.port",
+                str(free_port),
+                "--server.headless",
+                "true",
+            ],
+            cwd="examples",
+            stdout=PIPE,
+            stderr=PIPE,
+        )
+        sleep(1)  # give the app some time to startup
+        returncode = stapp.poll()
+        if returncode is not None:
             with capsys.disabled():
-                warn("Streamlit app not running yet. Waiting 1s.")
-            sleep(1)
-            returncode = stapp.poll()
-            retry_counter += 1
-            if returncode is not None:
+                warn(stapp.stderr.peek().decode())
+                pytest.fail("Failed to start Streamlit App")
+        # no return code if app is running
+        startup_loop = True
+        retries = 30
+        retry_counter = 0
+        while startup_loop and retry_counter < retries:
+            if (
+                "You can now view your Streamlit app in your browser."
+                in stapp.stdout.peek().decode()
+            ):
+                startup_loop = False
+                yield stapp, free_port
+            else:
                 with capsys.disabled():
-                    warn(stapp.stderr.peek().decode())
-                    pytest.fail(f"Failed to start Streamlit App. Retries: {retries}")
-    if retry_counter == retries:
-        with capsys.disabled():
-            warn(stapp.stderr.peek().decode())
-            pytest.fail(f"Failed to start Streamlit App after {retries} retries.")
-    try:
-        stapp.send_signal(signal.SIGINT)
-        stapp.wait(timeout=15)
-    except TimeoutExpired:
-        stapp.kill()
-        stapp.terminate()
+                    warn("Streamlit app not running yet. Waiting 1s.")
+                sleep(1)
+                returncode = stapp.poll()
+                retry_counter += 1
+                if returncode is not None:
+                    with capsys.disabled():
+                        warn(stapp.stderr.peek().decode())
+                        pytest.fail(
+                            f"Failed to start Streamlit App. Retries: {retries}"
+                        )
+        if retry_counter == retries:
+            with capsys.disabled():
+                warn(stapp.stderr.peek().decode())
+                pytest.fail(f"Failed to start Streamlit App after {retries} retries.")
+        try:
+            stapp.send_signal(signal.SIGINT)
+            stapp.wait(timeout=15)
+        except TimeoutExpired:
+            stapp.kill()
+            stapp.terminate()
 
 
 @pytest.mark.only_browser("chromium")
