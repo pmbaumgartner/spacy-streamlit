@@ -3,7 +3,7 @@ name: Run tests
 on: push
 
 env:
-  ENVIRONMENT: gha
+  STREAMLIT_SERVER_PORT: 8989
 
 jobs:
   test:
@@ -35,10 +35,9 @@ jobs:
         run: >-
           cd examples &&
           streamlit run 01_out-of-the-box.py
-          --server.port 8989
           --server.headless true
           &
       - name: Run your tests
-        run: cd .. && pytest
-      - name: Cleanup / Kill streamlit
-        run: kill %1
+        run: |
+          cd ..
+          pytest
