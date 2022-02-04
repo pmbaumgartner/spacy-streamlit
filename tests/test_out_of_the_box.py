@@ -91,13 +91,13 @@ def warn_stderr_and_fail(
 
 
 @pytest.mark.only_browser("chromium")
-def test_out_of_the_box(streamlit_app: StreamlitPort, page: Page):
+def test_out_of_the_box(page: Page):
     test_text = "David Robert Jones was born on 8 January 1947 in Brixton, London."
     model = "en_core_web_sm"
     nlp = spacy.load(model)
     doc = nlp(test_text)
 
-    page.goto(f"http://localhost:{streamlit_app}")
+    page.goto(f"http://localhost:8989")
 
     # even though the `en_core_web_sm` model is default
     # this selects it from the dropdown to confirm

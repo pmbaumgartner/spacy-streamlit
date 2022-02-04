@@ -10,13 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     services:
       # Label used to access the service container
-      streamlit_app:
-        # Docker Hub image
-        image: ghcr.io/${{ github.repository }}:release
-        #
-        ports:
-          # Opens tcp port 6379 on the host and service container
-          - 8989:8989
+      # streamlit_app:
+      #   # Docker Hub image
+      #   image: ghcr.io/${{ github.repository }}:release
+      #   #
+      #   ports:
+      #     # Opens tcp port 6379 on the host and service container
+      #     - 8989:8989
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python
@@ -40,5 +40,14 @@ jobs:
         run: python -m playwright install
       - name: Install operating system dependencies
         run: python -m playwright install-deps
+      - name: Start Streamlit
+        run: >-
+          cd examples && \
+          streamlit run 01_out-of-the-box.py \
+          --server.port 8989 \
+          --server.headless true \
+          &
       - name: Run your tests
-        run: pytest
+        run: cd .. && pytest
+      - name: Cleanup / Kill streamlit
+        run: kill %1
