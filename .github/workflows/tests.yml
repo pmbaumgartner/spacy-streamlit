@@ -1,6 +1,10 @@
-name: Run tests
+name: Run Playwright Test for 01_out-of-the-box.py
 
-on: push
+on:
+  push:
+    paths:
+      - "examples/01_out-of-the-box.py"
+  workflow_dispatch:
 
 env:
   STREAMLIT_SERVER_PORT: 8989
