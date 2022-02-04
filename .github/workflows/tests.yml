@@ -33,10 +33,10 @@ jobs:
         run: python -m playwright install-deps
       - name: Start Streamlit
         run: >-
-          cd examples && \
-          streamlit run 01_out-of-the-box.py \
-          --server.port 8989 \
-          --server.headless true \
+          cd examples &&
+          streamlit run 01_out-of-the-box.py
+          --server.port 8989
+          --server.headless true
           &
       - name: Run your tests
         run: cd .. && pytest
